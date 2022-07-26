@@ -7,7 +7,11 @@ const methodOverride = require("method-override");
 const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
+const Comment = require("./models/comments");
 const app = express();
+const Blog= require("./models/Blog");
+
+const flash = require('connect-flash');
 
 mongoose.connect("mongodb+srv://parth:P1r5h0403@gql.xedwfcs.mongodb.net/temp?retryWrites=true&w=majority", {
   useNewUrlParser: true,
@@ -23,6 +27,7 @@ db.once("open", () => {
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+app.use(flash());
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
 app.use(express.static('public'))
@@ -80,7 +85,43 @@ app.get('/logout', (req,res)=>{
   }  
 })
 
+app.post('/blog', async (req,res)=>{
+  const blog= new Blog(req.body.blog);
+  blog.author= req.user._id;
+  await blog.save();
+  console.log(blog);
+  console.log(req.user.username);
+  res.send("done")
+})
 
+app.post('/comments/:id', async (req,res)=>{
+  console.log(req.params.id);
+  const blog= await Blog.findById(req.params.id);
+  const comment= new Comment(req.body.comment);
+  comment.author= req.user._id;
+  await comment.save();
+  console.log(comment);
+  console.log(blog);
+  blog.comments.push(comment);  
+  await blog.save();
+  res.send(blog);
+})
+
+app.get('/all', async (req,res)=>{
+  const blogs= await Blog.find({}).populate('author');
+  res.send(blogs);
+})
+
+app.get('/all/:id', async (req,res)=>{
+  const blogs= await Blog.findById(req.params.id).populate({
+    path:"comments",
+    populate:{
+      path:'author'
+    }
+
+  }).populate('author');
+  res.send(blogs);
+})
 app.listen(3000, ()=>{
   console.log("App is listening on port 3000")
 })
